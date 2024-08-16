@@ -1,0 +1,12 @@
+[GLOBAL]
+pants_version = "2.20.0"
+backend_packages = [
+  "pants.backend.python",
+  "pants.backend.awslambda.python",
+]
+
+[python]
+interpreter_constraints = [ ">=3.9,<3.10" ] 
+
+[source]
+root_patterns = ["src", "build"]
