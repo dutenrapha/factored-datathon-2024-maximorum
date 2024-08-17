@@ -23,6 +23,11 @@ resource "aws_iam_role_policy_attachment" "lambda_policy" {
   policy_arn = "arn:aws:iam::339713000240:policy/AWSLambdaDatathon"
 }
 
+resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  name              = "/aws/lambda/${aws_lambda_function.ingestion_function.function_name}"
+  retention_in_days = 14
+}
+
 resource "aws_lambda_function" "ingestion_function" {
   function_name = "ingestion_function"
   role          = aws_iam_role.lambda_execution_role.arn
@@ -37,4 +42,6 @@ resource "aws_lambda_function" "ingestion_function" {
       S3_BUCKET_NAME = var.S3_BUCKET_NAME
     }
   }
+
+  timeout = 900 
 }

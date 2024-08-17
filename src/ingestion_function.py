@@ -3,14 +3,16 @@ import requests
 from bs4 import BeautifulSoup
 import logging
 import os
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
+# Configuração do cliente S3 e logger
 s3_client = boto3.client('s3')
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-S3_BUCKET_NAME = os.environ['S3_BUCKET_NAME']  
-
+# Nome do bucket S3 e URL do GDELT definidos via variáveis de ambiente
+S3_BUCKET_NAME = os.environ['S3_BUCKET_NAME']
 GDELT_URL = 'http://data.gdeltproject.org/events/index.html'
 
 def lambda_handler(event, context):
@@ -27,8 +29,8 @@ def lambda_handler(event, context):
     for zip_file in zip_links:
         if not file_exists_in_s3(zip_file):
             zip_url = f'http://data.gdeltproject.org/events/{zip_file}'
-            download_and_upload_to_s3(zip_url, zip_file)
-            new_files += 1
+            if download_and_upload_to_s3(zip_url, zip_file):
+                new_files += 1
         else:
             logger.info(f"File {zip_file} already exists in S3, skipping download.")
 
@@ -47,16 +49,20 @@ def file_exists_in_s3(file_name):
         return False
 
 def download_and_upload_to_s3(zip_url, zip_file):
-    """Download the ZIP file and upload it to S3"""
+    """Download the ZIP file and upload it to S3 using streaming"""
     try:
-        zip_response = requests.get(zip_url)
-        if zip_response.status_code == 200:
-            s3_key = f'bronze/gdelt_data/{zip_file}'
-            s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=s3_key, Body=zip_response.content)
-            logger.info(f"Successfully uploaded {zip_file} to S3")
-        else:
-            logger.error(f"Failed to download {zip_file} from {zip_url}: {zip_response.status_code}")
+        with requests.Session() as session:
+            retries = Retry(total=5, backoff_factor=0.5, status_forcelist=[502, 503, 504])
+            session.mount('http://', HTTPAdapter(max_retries=retries))
+            response = session.get(zip_url, stream=True)
+            if response.status_code == 200:
+                s3_key = f'bronze/gdelt_data/{zip_file}'
+                s3_client.upload_fileobj(response.raw, S3_BUCKET_NAME, s3_key)
+                logger.info(f"Successfully uploaded {zip_file} to S3")
+                return True
+            else:
+                logger.error(f"Failed to download {zip_file} from {zip_url}: {response.status_code}")
+                return False
     except Exception as e:
         logger.error(f"Error downloading or uploading file {zip_file}: {e}")
-        raise
-
+        return False
