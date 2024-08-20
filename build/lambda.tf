@@ -43,5 +43,6 @@ resource "aws_lambda_function" "ingestion_function" {
     }
   }
 
-  timeout = 900 
+  timeout = 900
+  memory_size = 3008
 }

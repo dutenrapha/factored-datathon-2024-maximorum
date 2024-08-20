@@ -28,3 +28,9 @@ resource "aws_s3_object" "gold_folder" {
   key    = "gold/"
   acl    = "private"
 }
+
+resource "aws_s3_object" "dependencies_folder" {
+  bucket = aws_s3_bucket.gdelt_project.bucket
+  key    = "dependencies/"
+  acl    = "private"
+}
