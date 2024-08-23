@@ -34,8 +34,28 @@ resource "aws_lambda_function" "ingestion_function" {
   handler       = "lambda_function.handler"
   runtime       = "python3.9"
 
-  filename      = "${path.module}/../dist/lambda.zip"
-  source_code_hash = filebase64sha256("${path.module}/../dist/lambda.zip")
+  filename      = "${path.module}/../dist/injection/lambda.zip"
+  source_code_hash = filebase64sha256("${path.module}/../dist/injection/lambda.zip")
+
+  environment {
+    variables = {
+      S3_BUCKET_NAME = var.S3_BUCKET_NAME
+    }
+  }
+
+  timeout = 900
+  memory_size = 3008
+}
+
+
+resource "aws_lambda_function" "redshift_load" {
+  function_name = "redshift_load"
+  role          = aws_iam_role.lambda_execution_role.arn
+  handler       = "lambda_function.handler"
+  runtime       = "python3.9"
+
+  filename      = "${path.module}/../dist/load/lambda.zip"
+  source_code_hash = filebase64sha256("${path.module}/../dist/load/lambda.zip")
 
   environment {
     variables = {
