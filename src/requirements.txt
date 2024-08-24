@@ -11,3 +11,4 @@ s3transfer==0.6.2
 six==1.16.0
 soupsieve==2.6
 urllib3==1.26.19
+pandas==2.2.2

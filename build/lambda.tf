@@ -66,3 +66,23 @@ resource "aws_lambda_function" "redshift_load" {
   timeout = 900
   memory_size = 3008
 }
+
+
+resource "aws_lambda_function" "forecast_metrics" {
+  function_name = "forecast_metrics"
+  role          = aws_iam_role.lambda_execution_role.arn
+  handler       = "lambda_function.handler"
+  runtime       = "python3.9"
+
+  filename      = "${path.module}/../dist/forecast/lambda.zip"
+  source_code_hash = filebase64sha256("${path.module}/../dist/forecast/lambda.zip")
+
+  environment {
+    variables = {
+      S3_BUCKET_NAME = var.S3_BUCKET_NAME
+    }
+  }
+
+  timeout = 900
+  memory_size = 3008
+}

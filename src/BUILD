@@ -20,3 +20,11 @@ python_aws_lambda_function(
     include_requirements=True, 
     output_path="load/lambda.zip"
 )
+
+python_aws_lambda_function(
+    name="forecast_metrics", 
+    handler="forecast_metrics.py:lambda_handler",
+    runtime="python3.9",
+    include_requirements=True, 
+    output_path="forecast/lambda.zip"
+)
