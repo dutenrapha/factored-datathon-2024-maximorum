@@ -102,3 +102,21 @@ resource "aws_lambda_function" "model_training" {
   timeout = 900
   memory_size = 3008
 }
+
+
+resource "aws_lambda_function" "execution" {
+  function_name = "execution"
+  role          = aws_iam_role.lambda_execution_role.arn
+  image_uri = "339713000240.dkr.ecr.us-east-2.amazonaws.com/gdelt:execution"
+  package_type = "Image"
+ 
+
+  environment {
+    variables = {
+      S3_BUCKET_NAME = var.S3_BUCKET_NAME
+    }
+  } 
+
+  timeout = 900
+  memory_size = 3008
+}

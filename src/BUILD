@@ -47,3 +47,17 @@ docker_image(
     name="model_training_image",
     dependencies = [":model_training"],
 )
+
+
+python_aws_lambda_function(
+    name="execution", 
+    handler="execution.py:lambda_handler",
+    runtime="python3.9",
+    include_requirements=True, 
+)
+
+
+docker_image(
+    name="execution_image",
+    dependencies = [":execution"],
+)
