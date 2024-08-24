@@ -1,13 +1,11 @@
 import boto3
 import json
-import os
 import time
-import pandas as pd
+from statsmodels.tsa.arima.model import ARIMA
 
 def lambda_handler(event, context):
     client = boto3.client('redshift-data')
     
-    # Retrieve the mandatory ActionGeo_CountryCode parameter
     if 'ActionGeo_CountryCode' not in event:
         return {
             'statusCode': 400,
@@ -16,7 +14,6 @@ def lambda_handler(event, context):
     
     action_geo_country_code = event['ActionGeo_CountryCode']
     
-    # Define workgroup, database, and secret ARN
     workgroup_name = 'default-workgroup'
     database = 'dev'
     secret_arn = 'arn:aws:secretsmanager:us-east-2:339713000240:secret:prod-dw-access-H7nfCP'
@@ -25,7 +22,7 @@ def lambda_handler(event, context):
     WITH recent_weeks AS (
         SELECT DISTINCT DATE_TRUNC('week', TO_DATE(SQLDATE, 'YYYYMMDD')) AS Week
         FROM gdelt_event
-        WHERE TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -3)
+        WHERE TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -2)
     )
     SELECT 
         aggregated_data.Week,
@@ -46,7 +43,7 @@ def lambda_handler(event, context):
             WHERE 
                 EventRootCode IN ('6', '7', '13', '14', '15', '16', '17', '18', '19', '20')
                 AND ActionGeo_CountryCode = '{action_geo_country_code}'
-                AND TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -3)
+                AND TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -2)
             GROUP BY 
                 DATE_TRUNC('week', TO_DATE(SQLDATE, 'YYYYMMDD'))
         ) AS aggregated_data
@@ -68,7 +65,7 @@ def lambda_handler(event, context):
                 WHERE 
                     EventRootCode IN ('6', '7', '13', '14', '15', '16', '17', '18', '19', '20')
                     AND ActionGeo_CountryCode = '{action_geo_country_code}'
-                    AND TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -3)
+                    AND TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -2)
             ) AS subquery
             WHERE tone_ntile = 1 AND goldstein_ntile = 1
             GROUP BY 
@@ -82,7 +79,6 @@ def lambda_handler(event, context):
     """
 
     try:
-        # Execute the SQL query
         response = client.execute_statement(
             WorkgroupName=workgroup_name,
             Database=database,
@@ -93,7 +89,6 @@ def lambda_handler(event, context):
         execution_id = response['Id']
         print(f"Query execution ID: {execution_id}")
         
-        # Wait for the query to complete
         while True:
             status_response = client.describe_statement(Id=execution_id)
             status = status_response['Status']
@@ -112,45 +107,45 @@ def lambda_handler(event, context):
                 print("Waiting for query to complete...")
                 time.sleep(5)
 
-        # Fetch the results
         result_response = client.get_statement_result(Id=execution_id)
         records = result_response['Records']
-        
-        # Convert records to a DataFrame
-        data = []
+
+        data = {
+            'Week': [],
+            'TotalMentions': [],
+            'TotalSources': [],
+            'TotalArticles': [],
+            'MedianAvgTone': [],
+            'MedianGoldsteinScale': []
+        }
+
         for record in records:
-            row = []
-            for field in record:
-                if 'stringValue' in field:
-                    row.append(field['stringValue'])
-                elif 'doubleValue' in field:
-                    row.append(field['doubleValue'])
-                elif 'longValue' in field:
-                    row.append(field['longValue'])
-                else:
-                    row.append(None)
-            data.append(row)
-        
-        df = pd.DataFrame(data, columns=[
-            'Week', 
-            'TotalMentions', 
-            'TotalSources', 
-            'TotalArticles', 
-            'MedianAvgTone', 
-            'MedianGoldsteinScale'
-        ])
-        
-        # Extract the first and last rows
-        first_row = df.iloc[0].to_dict()
-        last_row = df.iloc[-1].to_dict()
-        
+            week_str = record[0]['stringValue'].split(" ")[0]
+            data['Week'].append(week_str)
+            data['TotalMentions'].append(float(record[1]['longValue']))
+            data['TotalSources'].append(float(record[2]['longValue']))
+            data['TotalArticles'].append(float(record[3]['longValue']))
+            data['MedianAvgTone'].append(float(record[4]['stringValue']))
+            data['MedianGoldsteinScale'].append(float(record[5]['stringValue']))
+
+        data['Week'] = [time.strptime(week, '%Y-%m-%d') for week in data['Week']]
+
+        predictions = {}
+
+        for column in ['TotalMentions', 'TotalSources', 'TotalArticles', 'MedianAvgTone', 'MedianGoldsteinScale']:
+            y = data[column]
+
+            y_train = y[:-1]
+            y_test = y[-1]
+
+            best_model, best_order, best_score = find_best_arima_model(y_train, y_test)
+
+            forecast = best_model.forecast(steps=1)
+            predictions[column] = forecast[0]
+
         return {
             'statusCode': 200,
-            'body': json.dumps({
-                'first_row': first_row,
-                'last_row': last_row,
-                'len_df':len(df)
-            })
+            'body': json.dumps(predictions)
         }
     
     except Exception as e:
@@ -159,3 +154,30 @@ def lambda_handler(event, context):
             'statusCode': 500,
             'body': json.dumps(f"Error executing the query: {str(e)}")
         }
+
+def find_best_arima_model(y_train, y_test):
+    best_score = float('inf')
+    best_order = None
+    best_model = None
+    
+    for p in range(3):
+        for d in range(3):
+            for q in range(3):
+                try:
+                    model = ARIMA(y_train, order=(p, d, q))
+                    model_fit = model.fit()
+                    forecast = model_fit.forecast(steps=1)
+                    
+                    mse = mean_squared_error(y_test, forecast[0])
+                    
+                    if mse < best_score:
+                        best_score = mse
+                        best_order = (p, d, q)
+                        best_model = model_fit
+                except Exception as e:
+                    continue
+
+    return best_model, best_order, best_score
+
+def mean_squared_error(actual, predicted):
+    return (actual - predicted) ** 2

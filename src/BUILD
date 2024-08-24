@@ -26,5 +26,10 @@ python_aws_lambda_function(
     handler="forecast_metrics.py:lambda_handler",
     runtime="python3.9",
     include_requirements=True, 
-    output_path="forecast/lambda.zip"
+)
+
+
+docker_image(
+    name="forecast_metrics_image",
+    dependencies = [":forecast_metrics"],
 )

@@ -71,11 +71,9 @@ resource "aws_lambda_function" "redshift_load" {
 resource "aws_lambda_function" "forecast_metrics" {
   function_name = "forecast_metrics"
   role          = aws_iam_role.lambda_execution_role.arn
-  handler       = "lambda_function.handler"
-  runtime       = "python3.9"
-
-  filename      = "${path.module}/../dist/forecast/lambda.zip"
-  source_code_hash = filebase64sha256("${path.module}/../dist/forecast/lambda.zip")
+  image_uri = "339713000240.dkr.ecr.us-east-2.amazonaws.com/gdelt:latest"
+  package_type = "Image"
+ 
 
   environment {
     variables = {
