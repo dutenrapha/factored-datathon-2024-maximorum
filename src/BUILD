@@ -33,3 +33,17 @@ docker_image(
     name="forecast_metrics_image",
     dependencies = [":forecast_metrics"],
 )
+
+
+python_aws_lambda_function(
+    name="model_training", 
+    handler="model_training.py:lambda_handler",
+    runtime="python3.9",
+    include_requirements=True, 
+)
+
+
+docker_image(
+    name="model_training_image",
+    dependencies = [":model_training"],
+)

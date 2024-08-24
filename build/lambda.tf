@@ -71,7 +71,7 @@ resource "aws_lambda_function" "redshift_load" {
 resource "aws_lambda_function" "forecast_metrics" {
   function_name = "forecast_metrics"
   role          = aws_iam_role.lambda_execution_role.arn
-  image_uri = "339713000240.dkr.ecr.us-east-2.amazonaws.com/gdelt:latest"
+  image_uri = "339713000240.dkr.ecr.us-east-2.amazonaws.com/gdelt:forecast"
   package_type = "Image"
  
 
@@ -80,6 +80,24 @@ resource "aws_lambda_function" "forecast_metrics" {
       S3_BUCKET_NAME = var.S3_BUCKET_NAME
     }
   }
+
+  timeout = 900
+  memory_size = 3008
+}
+
+
+resource "aws_lambda_function" "model_training" {
+  function_name = "model_training"
+  role          = aws_iam_role.lambda_execution_role.arn
+  image_uri = "339713000240.dkr.ecr.us-east-2.amazonaws.com/gdelt:training"
+  package_type = "Image"
+ 
+
+  environment {
+    variables = {
+      S3_BUCKET_NAME = var.S3_BUCKET_NAME
+    }
+  } 
 
   timeout = 900
   memory_size = 3008
