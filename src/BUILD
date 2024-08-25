@@ -61,3 +61,16 @@ docker_image(
     name="execution_image",
     dependencies = [":execution"],
 )
+
+python_aws_lambda_function(
+    name="distance", 
+    handler="distance.py:lambda_handler",
+    runtime="python3.9",
+    include_requirements=True, 
+)
+
+
+docker_image(
+    name="distance_image",
+    dependencies = [":distance"],
+)

@@ -120,3 +120,21 @@ resource "aws_lambda_function" "execution" {
   timeout = 900
   memory_size = 3008
 }
+
+
+resource "aws_lambda_function" "distance" {
+  function_name = "distance"
+  role          = aws_iam_role.lambda_execution_role.arn
+  image_uri = "339713000240.dkr.ecr.us-east-2.amazonaws.com/gdelt:distance"
+  package_type = "Image"
+ 
+
+  environment {
+    variables = {
+      S3_BUCKET_NAME = var.S3_BUCKET_NAME
+    }
+  } 
+
+  timeout = 900
+  memory_size = 3008
+}
