@@ -74,3 +74,16 @@ docker_image(
     name="distance_image",
     dependencies = [":distance"],
 )
+
+python_aws_lambda_function(
+    name="minimize", 
+    handler="minimize.py:lambda_handler",
+    runtime="python3.9",
+    include_requirements=True, 
+)
+
+
+docker_image(
+    name="minimize_image",
+    dependencies = [":minimize"],
+)

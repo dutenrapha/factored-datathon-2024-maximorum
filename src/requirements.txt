@@ -20,3 +20,4 @@ statsmodels==0.14.2
 tzdata==2024.1
 urllib3==1.26.19
 MiniSom==2.3.2
+cvxpy==1.5.3
