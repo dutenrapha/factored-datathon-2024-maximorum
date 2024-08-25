@@ -40,7 +40,7 @@ def display_example_data(example_data):
         st.markdown(f"**Item:** {item_name}")
         for cost in countries_costs:
             country_code, price = list(cost.items())[0]
-            st.write(f"- {COUNTRY_MAP.get(country_code, country_code)}: {price}")
+            st.write(f"- {COUNTRY_MAP.get(country_code, country_code)}: ${price}")
     st.markdown(f"**Risk Aversion:** {example_data['risk_aversion']}")
 
 def invoke_lambda(payload):
@@ -76,12 +76,14 @@ def main():
         risk_aversion = st.selectbox("What is your risk aversion level?", ["High", "Medium", "Low"])
 
     if st.button("Minimize Risk"):
-        st.write("Sending data to `minimize` Lambda function...")
+        st.write("`Minimizing` your production costs while considering the social risks of each country...")
+
         payload = {"items": items, "risk_aversion": risk_aversion}
-        
+
         try:
             recommendations = invoke_lambda(payload)
             st.write("Production recommendations received:")
+            
             for recommendation in recommendations:
                 for item_name, best_country in recommendation.items():
                     st.write(f"Item: {item_name} should be produced in {COUNTRY_MAP.get(best_country, best_country)}")
