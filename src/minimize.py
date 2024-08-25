@@ -115,7 +115,12 @@ def solve_optimization_problem(cost, distance, RA, n_items, n_countries):
     assert cost.shape == xi.shape, f"Shape mismatch: cost {cost.shape}, xi {xi.shape}"
     
     objective = cp.Minimize(cp.sum(cp.multiply(cost, xi)))
-    constraints = [cp.sum(xi[i, :]) == 1 for i in range(n_items)]
+    
+    constraints = []
+    for i in range(n_items):
+        relevant_countries = np.where(cost[i, :] > 0)[0]  
+        constraints.append(cp.sum(xi[i, relevant_countries]) == 1)
+    
     constraints.append(cp.sum(cp.multiply(distance, cp.sum(xi, axis=0))) <= RA)
     
     problem = cp.Problem(objective, constraints)
@@ -124,8 +129,10 @@ def solve_optimization_problem(cost, distance, RA, n_items, n_countries):
     print(f"Optimization problem solved. Status: {problem.status}")
     return xi
 
+
 def format_result(xi, item_names, countries, n_items, n_countries):
     print("Formatting optimization results...")
+    print(f"countries {countries}")
     result = []
     for i in range(n_items):
         for c in range(n_countries):
@@ -135,7 +142,7 @@ def format_result(xi, item_names, countries, n_items, n_countries):
     return result
 
 def lambda_handler(event, context):
-    s3_client = boto3.client('s3')
+   
     client = boto3.client('redshift-data')
     
     workgroup_name = 'default-workgroup'
@@ -157,6 +164,7 @@ def lambda_handler(event, context):
         validate_distances(distance, countries)
         
         xi = solve_optimization_problem(cost, distance, RA, n_items, n_countries)
+        print(f"xi:{xi.value}")
         result = format_result(xi, item_names, countries, n_items, n_countries)
         
         print("Lambda handler completed successfully.")
