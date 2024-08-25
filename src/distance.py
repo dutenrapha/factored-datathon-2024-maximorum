@@ -114,7 +114,7 @@ def lambda_handler(event, context):
             try:
                 X_test = np.array(values['data'])
                 distances = np.array([som.distance_map()[som.winner(x)] for x in X_test])
-
+                print(f"Country: {country_code}, Distance: {distance}")
                 for distance in distances:
                     insert_query = f"""
                     INSERT INTO {distance_table} (country, distance)

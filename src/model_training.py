@@ -15,11 +15,14 @@ def lambda_handler(event, context):
     s3_bucket = 'gdelt-project'
     s3_key = 'dependencies/minisom_model.pkl'
 
-    query = """
+    # Recebendo o número de meses como parâmetro do evento
+    num_months = event.get('num_months', -4)  # Valor padrão de -4 se não for especificado
+
+    query = f"""
     WITH recent_weeks AS (
         SELECT DISTINCT DATE_TRUNC('week', TO_DATE(SQLDATE, 'YYYYMMDD')) AS Week
         FROM gdelt_event
-        WHERE TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -2)
+        WHERE TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), {num_months})
     )
     SELECT 
         aggregated_data.Week,
@@ -39,7 +42,7 @@ def lambda_handler(event, context):
                 gdelt_event
             WHERE 
                 EventRootCode IN ('6', '7', '13', '14', '15', '16', '17', '18', '19', '20')
-                AND TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -2)
+                AND TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), {num_months})
             GROUP BY 
                 DATE_TRUNC('week', TO_DATE(SQLDATE, 'YYYYMMDD'))
         ) AS aggregated_data
@@ -60,7 +63,7 @@ def lambda_handler(event, context):
                     gdelt_event
                 WHERE 
                     EventRootCode IN ('6', '7', '13', '14', '15', '16', '17', '18', '19', '20')
-                    AND TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), -2)
+                    AND TO_DATE(SQLDATE, 'YYYYMMDD') >= ADD_MONTHS(DATE_TRUNC('week', CURRENT_DATE), {num_months})
             ) AS subquery
             WHERE tone_ntile = 1 AND goldstein_ntile = 1
             GROUP BY 
@@ -136,6 +139,7 @@ def lambda_handler(event, context):
         ])
 
         # Initialize and train the MiniSom model
+        print(f"X_Train: {X_train}")
         som = MiniSom(5, 5, X_train.shape[1], sigma=1.0, learning_rate=0.5)
         som.random_weights_init(X_train)
         som.train_random(X_train, 100)
